@@ -1,0 +1,18 @@
+# Dépendances pour le compteur de vélos
+
+# YOLO et vision par ordinateur
+ultralytics>=8.0.0
+opencv-python>=4.8.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Support DirectML pour GPU AMD sur Windows
+# Décommenter si vous utilisez un GPU AMD:
+# torch-directml
+
+# Utilitaires
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# Pour l'analyse des résultats
+matplotlib>=3.7.0

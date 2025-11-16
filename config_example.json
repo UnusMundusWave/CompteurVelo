@@ -1,0 +1,16 @@
+{
+  "video_path": "parade.mp4",
+  "model_path": "yolov8n.pt",
+  "counting_line_x": null,
+  "min_confidence": 0.5,
+  "show_video": true,
+  "output_path": "resultat_annote.mp4",
+  "notes": {
+    "video_path": "Chemin vers votre vidéo MP4",
+    "model_path": "Modèle YOLO: yolov8n.pt (rapide) ou yolov8s.pt (précis)",
+    "counting_line_x": "Position X de la ligne en pixels (null = milieu)",
+    "min_confidence": "Seuil de confiance 0.0 à 1.0",
+    "show_video": "Afficher la vidéo pendant le traitement",
+    "output_path": "Sauvegarder la vidéo annotée (null = pas de sauvegarde)"
+  }
+}

@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Modèles YOLO
+*.pt
+*.onnx
+*.engine
+
+# Vidéos
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Résultats
+bike_count_results.json
+results/
+output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
