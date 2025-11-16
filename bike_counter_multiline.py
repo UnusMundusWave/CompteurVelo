@@ -1,6 +1,6 @@
 """
 Compteur de vélos pour parade - VERSION MULTI-LIGNES
-Détecte et compte les vélos traversant 3 lignes verticales (A, B, C)
+Détecte et compte les vélos traversant 5 lignes verticales (A, B, C, D, E)
 Analyse les trajectoires complètes et les combinaisons de passages
 """
 
@@ -16,7 +16,7 @@ from itertools import combinations
 
 class MultiLineBikeCounter:
     def __init__(self, video_path, model_path="yolov8n.pt",
-                 line_a=None, line_b=None, line_c=None,
+                 line_a=None, line_b=None, line_c=None, line_d=None, line_e=None,
                  min_confidence=0.5, show_video=True, output_path=None,
                  use_gpu=True):
         """
@@ -25,9 +25,11 @@ class MultiLineBikeCounter:
         Args:
             video_path: Chemin vers la vidéo MP4
             model_path: Chemin vers le modèle YOLO (par défaut yolov8n.pt)
-            line_a: Position X de la ligne A (None = 1/4 de la largeur)
-            line_b: Position X de la ligne B (None = 1/2 de la largeur)
-            line_c: Position X de la ligne C (None = 3/4 de la largeur)
+            line_a: Position X de la ligne A (None = 1/6 de la largeur)
+            line_b: Position X de la ligne B (None = 2/6 de la largeur)
+            line_c: Position X de la ligne C (None = 3/6 de la largeur)
+            line_d: Position X de la ligne D (None = 4/6 de la largeur)
+            line_e: Position X de la ligne E (None = 5/6 de la largeur)
             min_confidence: Confiance minimale pour la détection (0.0 à 1.0)
             show_video: Afficher la vidéo pendant le traitement
             output_path: Chemin pour sauvegarder la vidéo annotée
@@ -38,6 +40,8 @@ class MultiLineBikeCounter:
         self.line_a = line_a
         self.line_b = line_b
         self.line_c = line_c
+        self.line_d = line_d
+        self.line_e = line_e
         self.min_confidence = min_confidence
         self.show_video = show_video
         self.output_path = output_path
@@ -48,39 +52,49 @@ class MultiLineBikeCounter:
 
         # Tracking des objets et leurs passages
         self.track_history = defaultdict(list)
-        self.object_crossings = defaultdict(set)  # {object_id: {A, B, C}}
+        self.object_crossings = defaultdict(set)  # {object_id: {A, B, C, D, E}}
         self.object_types = {}  # {object_id: 'bike' or 'person'}
 
         # Compteurs par ligne - VÉLOS
         self.count_bikes_a = 0
         self.count_bikes_b = 0
         self.count_bikes_c = 0
+        self.count_bikes_d = 0
+        self.count_bikes_e = 0
 
         # Compteurs par ligne - PERSONNES
         self.count_people_a = 0
         self.count_people_b = 0
         self.count_people_c = 0
+        self.count_people_d = 0
+        self.count_people_e = 0
 
-        # Compteurs par combinaison - VÉLOS
+        # Compteurs par combinaison - VÉLOS (31 combinaisons possibles pour 5 lignes)
         self.bikes_combinations_count = {
-            'A_only': 0,
-            'B_only': 0,
-            'C_only': 0,
-            'A_and_B': 0,
-            'A_and_C': 0,
-            'B_and_C': 0,
-            'A_B_and_C': 0
+            # Singles (5)
+            'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0,
+            # Pairs (10)
+            'AB': 0, 'AC': 0, 'AD': 0, 'AE': 0, 'BC': 0, 'BD': 0, 'BE': 0, 'CD': 0, 'CE': 0, 'DE': 0,
+            # Triples (10)
+            'ABC': 0, 'ABD': 0, 'ABE': 0, 'ACD': 0, 'ACE': 0, 'ADE': 0, 'BCD': 0, 'BCE': 0, 'BDE': 0, 'CDE': 0,
+            # Quadruples (5)
+            'ABCD': 0, 'ABCE': 0, 'ABDE': 0, 'ACDE': 0, 'BCDE': 0,
+            # Quintuple (1)
+            'ABCDE': 0
         }
 
-        # Compteurs par combinaison - PERSONNES
+        # Compteurs par combinaison - PERSONNES (31 combinaisons possibles pour 5 lignes)
         self.people_combinations_count = {
-            'A_only': 0,
-            'B_only': 0,
-            'C_only': 0,
-            'A_and_B': 0,
-            'A_and_C': 0,
-            'B_and_C': 0,
-            'A_B_and_C': 0
+            # Singles (5)
+            'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0,
+            # Pairs (10)
+            'AB': 0, 'AC': 0, 'AD': 0, 'AE': 0, 'BC': 0, 'BD': 0, 'BE': 0, 'CD': 0, 'CE': 0, 'DE': 0,
+            # Triples (10)
+            'ABC': 0, 'ABD': 0, 'ABE': 0, 'ACD': 0, 'ACE': 0, 'ADE': 0, 'BCD': 0, 'BCE': 0, 'BDE': 0, 'CDE': 0,
+            # Quadruples (5)
+            'ABCD': 0, 'ABCE': 0, 'ABDE': 0, 'ACDE': 0, 'BCDE': 0,
+            # Quintuple (1)
+            'ABCDE': 0
         }
 
         # Objets terminés (sortis de l'image)
@@ -142,18 +156,24 @@ class MultiLineBikeCounter:
         print(f"  FPS: {fps}")
         print(f"  Frames totales: {total_frames}")
 
-        # Définir les lignes de comptage (répartition par défaut)
+        # Définir les lignes de comptage (répartition par défaut: 1/6, 2/6, 3/6, 4/6, 5/6)
         if self.line_a is None:
-            self.line_a = width // 4
+            self.line_a = width // 6
         if self.line_b is None:
-            self.line_b = width // 2
+            self.line_b = (2 * width) // 6
         if self.line_c is None:
-            self.line_c = (3 * width) // 4
+            self.line_c = (3 * width) // 6
+        if self.line_d is None:
+            self.line_d = (4 * width) // 6
+        if self.line_e is None:
+            self.line_e = (5 * width) // 6
 
         print(f"\nLignes de comptage:")
         print(f"  Ligne A: x = {self.line_a}")
         print(f"  Ligne B: x = {self.line_b}")
         print(f"  Ligne C: x = {self.line_c}")
+        print(f"  Ligne D: x = {self.line_d}")
+        print(f"  Ligne E: x = {self.line_e}")
 
         # Configurer l'enregistrement vidéo si demandé
         out = None
@@ -312,6 +332,8 @@ class MultiLineBikeCounter:
                     self.check_line_crossing(track_id, prev_x, curr_x, self.line_a, 'A')
                     self.check_line_crossing(track_id, prev_x, curr_x, self.line_b, 'B')
                     self.check_line_crossing(track_id, prev_x, curr_x, self.line_c, 'C')
+                    self.check_line_crossing(track_id, prev_x, curr_x, self.line_d, 'D')
+                    self.check_line_crossing(track_id, prev_x, curr_x, self.line_e, 'E')
 
         return current_ids
 
@@ -353,13 +375,11 @@ class MultiLineBikeCounter:
 
         # Sélectionner les bons compteurs selon le type
         if obj_type == 'bike':
-            count_dict_line = [('A', 'count_bikes_a'), ('B', 'count_bikes_b'), ('C', 'count_bikes_c')]
             combinations_count = self.bikes_combinations_count
         else:  # person
-            count_dict_line = [('A', 'count_people_a'), ('B', 'count_people_b'), ('C', 'count_people_c')]
             combinations_count = self.people_combinations_count
 
-        # Incrémenter les compteurs individuels
+        # Incrémenter les compteurs individuels par ligne
         if 'A' in crossings:
             if obj_type == 'bike':
                 self.count_bikes_a += 1
@@ -378,30 +398,31 @@ class MultiLineBikeCounter:
             else:
                 self.count_people_c += 1
 
-        # Déterminer la combinaison
-        crossing_set = frozenset(crossings)
+        if 'D' in crossings:
+            if obj_type == 'bike':
+                self.count_bikes_d += 1
+            else:
+                self.count_people_d += 1
 
-        if crossing_set == {'A'}:
-            combinations_count['A_only'] += 1
-            print(f"  📊 {obj_label} #{object_id} - Trajet: A seulement")
-        elif crossing_set == {'B'}:
-            combinations_count['B_only'] += 1
-            print(f"  📊 {obj_label} #{object_id} - Trajet: B seulement")
-        elif crossing_set == {'C'}:
-            combinations_count['C_only'] += 1
-            print(f"  📊 {obj_label} #{object_id} - Trajet: C seulement")
-        elif crossing_set == {'A', 'B'}:
-            combinations_count['A_and_B'] += 1
-            print(f"  📊 {obj_label} #{object_id} - Trajet: A et B")
-        elif crossing_set == {'A', 'C'}:
-            combinations_count['A_and_C'] += 1
-            print(f"  📊 {obj_label} #{object_id} - Trajet: A et C")
-        elif crossing_set == {'B', 'C'}:
-            combinations_count['B_and_C'] += 1
-            print(f"  📊 {obj_label} #{object_id} - Trajet: B et C")
-        elif crossing_set == {'A', 'B', 'C'}:
-            combinations_count['A_B_and_C'] += 1
-            print(f"  📊 {obj_label} #{object_id} - Trajet: A, B et C (COMPLET)")
+        if 'E' in crossings:
+            if obj_type == 'bike':
+                self.count_bikes_e += 1
+            else:
+                self.count_people_e += 1
+
+        # Déterminer la combinaison (clé du dictionnaire = lettres triées)
+        combination_key = ''.join(sorted(crossings))
+
+        if combination_key in combinations_count:
+            combinations_count[combination_key] += 1
+
+            # Message selon le nombre de lignes traversées
+            if len(crossings) == 5:
+                print(f"  📊 {obj_label} #{object_id} - Trajet: {combination_key} (COMPLET)")
+            elif len(crossings) >= 3:
+                print(f"  📊 {obj_label} #{object_id} - Trajet: {combination_key}")
+            else:
+                print(f"  📊 {obj_label} #{object_id} - Trajet: {combination_key}")
 
     def draw_annotations(self, frame, results, current_ids):
         """Dessine les annotations sur la frame"""
@@ -409,9 +430,11 @@ class MultiLineBikeCounter:
         height = frame.shape[0]
 
         # Dessiner les lignes de comptage avec couleurs différentes
-        cv2.line(annotated_frame, (self.line_a, 0), (self.line_a, height), (255, 0, 0), 3)  # Bleu - A
-        cv2.line(annotated_frame, (self.line_b, 0), (self.line_b, height), (0, 255, 0), 3)  # Vert - B
-        cv2.line(annotated_frame, (self.line_c, 0), (self.line_c, height), (0, 0, 255), 3)  # Rouge - C
+        cv2.line(annotated_frame, (self.line_a, 0), (self.line_a, height), (255, 0, 0), 3)     # Bleu - A
+        cv2.line(annotated_frame, (self.line_b, 0), (self.line_b, height), (0, 255, 0), 3)     # Vert - B
+        cv2.line(annotated_frame, (self.line_c, 0), (self.line_c, height), (0, 0, 255), 3)     # Rouge - C
+        cv2.line(annotated_frame, (self.line_d, 0), (self.line_d, height), (255, 255, 0), 3)   # Jaune - D
+        cv2.line(annotated_frame, (self.line_e, 0), (self.line_e, height), (255, 0, 255), 3)   # Magenta - E
 
         # Labels des lignes
         cv2.putText(annotated_frame, "A", (self.line_a - 15, 30),
@@ -420,6 +443,10 @@ class MultiLineBikeCounter:
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
         cv2.putText(annotated_frame, "C", (self.line_c - 15, 30),
                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+        cv2.putText(annotated_frame, "D", (self.line_d - 15, 30),
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 3)
+        cv2.putText(annotated_frame, "E", (self.line_e - 15, 30),
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 3)
 
         # Dessiner les détections
         if results[0].boxes is not None and results[0].boxes.id is not None:
@@ -442,12 +469,16 @@ class MultiLineBikeCounter:
 
                 # Couleur selon les lignes traversées
                 crossings = self.object_crossings[track_id]
-                if len(crossings) == 3:
-                    color = (255, 0, 255)  # Magenta - Toutes les lignes
+                if len(crossings) == 5:
+                    color = (255, 0, 255)    # Magenta - Toutes les lignes (5)
+                elif len(crossings) == 4:
+                    color = (255, 128, 255)  # Rose - Quatre lignes
+                elif len(crossings) == 3:
+                    color = (0, 255, 255)    # Cyan - Trois lignes
                 elif len(crossings) == 2:
-                    color = (0, 255, 255)  # Cyan - Deux lignes
+                    color = (255, 255, 0)    # Jaune - Deux lignes
                 elif len(crossings) == 1:
-                    color = (255, 255, 0)  # Jaune - Une ligne
+                    color = (255, 165, 0)    # Orange - Une ligne
                 else:
                     color = (128, 128, 128)  # Gris - Aucune ligne
 
@@ -473,14 +504,14 @@ class MultiLineBikeCounter:
         """Dessine les statistiques sur la frame"""
         # Fond semi-transparent plus grand pour les deux catégories
         overlay = frame.copy()
-        cv2.rectangle(overlay, (10, 50), (500, 450), (0, 0, 0), -1)
+        cv2.rectangle(overlay, (10, 50), (550, 250), (0, 0, 0), -1)
         cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
 
         y_offset = 70
         line_height = 25
 
         # Titre
-        cv2.putText(frame, "COMPTAGE VELOS & PERSONNES", (20, y_offset),
+        cv2.putText(frame, "COMPTAGE 5 LIGNES - VELOS & PERSONNES", (20, y_offset),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         y_offset += line_height + 5
 
@@ -489,12 +520,12 @@ class MultiLineBikeCounter:
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
         y_offset += line_height
 
-        cv2.putText(frame, f"A:{self.count_bikes_a} B:{self.count_bikes_b} C:{self.count_bikes_c}", (30, y_offset),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
+        cv2.putText(frame, f"A:{self.count_bikes_a} B:{self.count_bikes_b} C:{self.count_bikes_c} D:{self.count_bikes_d} E:{self.count_bikes_e}",
+                   (30, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
         y_offset += line_height - 5
 
         total_bikes = sum(self.bikes_combinations_count.values())
-        cv2.putText(frame, f"Total: {total_bikes} | ABC: {self.bikes_combinations_count['A_B_and_C']}", (30, y_offset),
+        cv2.putText(frame, f"Total: {total_bikes} | ABCDE: {self.bikes_combinations_count['ABCDE']}", (30, y_offset),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1)
         y_offset += line_height + 5
 
@@ -503,58 +534,104 @@ class MultiLineBikeCounter:
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 128, 0), 2)
         y_offset += line_height
 
-        cv2.putText(frame, f"A:{self.count_people_a} B:{self.count_people_b} C:{self.count_people_c}", (30, y_offset),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
+        cv2.putText(frame, f"A:{self.count_people_a} B:{self.count_people_b} C:{self.count_people_c} D:{self.count_people_d} E:{self.count_people_e}",
+                   (30, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
         y_offset += line_height - 5
 
         total_people = sum(self.people_combinations_count.values())
-        cv2.putText(frame, f"Total: {total_people} | ABC: {self.people_combinations_count['A_B_and_C']}", (30, y_offset),
+        cv2.putText(frame, f"Total: {total_people} | ABCDE: {self.people_combinations_count['ABCDE']}", (30, y_offset),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1)
 
     def print_results(self):
         """Affiche les résultats finaux"""
-        print("\n" + "="*70)
-        print("RÉSULTATS DU COMPTAGE MULTI-LIGNES - VÉLOS ET PERSONNES")
-        print("="*70)
+        print("\n" + "="*80)
+        print("RÉSULTATS DU COMPTAGE 5 LIGNES - VÉLOS ET PERSONNES")
+        print("="*80)
 
         # VÉLOS
         print(f"\n🚴 VÉLOS - PASSAGES PAR LIGNE:")
-        print(f"  Ligne A: {self.count_bikes_a} vélos")
-        print(f"  Ligne B: {self.count_bikes_b} vélos")
-        print(f"  Ligne C: {self.count_bikes_c} vélos")
+        print(f"  Ligne A: {self.count_bikes_a:3d} | Ligne B: {self.count_bikes_b:3d} | Ligne C: {self.count_bikes_c:3d} | Ligne D: {self.count_bikes_d:3d} | Ligne E: {self.count_bikes_e:3d}")
 
-        print(f"\n🚴 VÉLOS - ANALYSE DES TRAJETS:")
-        print(f"  A seulement:         {self.bikes_combinations_count['A_only']} vélos")
-        print(f"  B seulement:         {self.bikes_combinations_count['B_only']} vélos")
-        print(f"  C seulement:         {self.bikes_combinations_count['C_only']} vélos")
-        print(f"  A et B:              {self.bikes_combinations_count['A_and_B']} vélos")
-        print(f"  A et C:              {self.bikes_combinations_count['A_and_C']} vélos")
-        print(f"  B et C:              {self.bikes_combinations_count['B_and_C']} vélos")
-        print(f"  A, B et C (complet): {self.bikes_combinations_count['A_B_and_C']} vélos")
+        print(f"\n🚴 VÉLOS - ANALYSE DES TRAJETS (31 combinaisons):")
+
+        # Singles
+        print(f"\n  Ligne unique (5):")
+        for key in ['A', 'B', 'C', 'D', 'E']:
+            count = self.bikes_combinations_count[key]
+            if count > 0:
+                print(f"    {key:5s}: {count:3d} vélo(s)")
+
+        # Pairs
+        print(f"\n  Deux lignes (10):")
+        for key in ['AB', 'AC', 'AD', 'AE', 'BC', 'BD', 'BE', 'CD', 'CE', 'DE']:
+            count = self.bikes_combinations_count[key]
+            if count > 0:
+                print(f"    {key:5s}: {count:3d} vélo(s)")
+
+        # Triples
+        print(f"\n  Trois lignes (10):")
+        for key in ['ABC', 'ABD', 'ABE', 'ACD', 'ACE', 'ADE', 'BCD', 'BCE', 'BDE', 'CDE']:
+            count = self.bikes_combinations_count[key]
+            if count > 0:
+                print(f"    {key:5s}: {count:3d} vélo(s)")
+
+        # Quadruples
+        print(f"\n  Quatre lignes (5):")
+        for key in ['ABCD', 'ABCE', 'ABDE', 'ACDE', 'BCDE']:
+            count = self.bikes_combinations_count[key]
+            if count > 0:
+                print(f"    {key:5s}: {count:3d} vélo(s)")
+
+        # Quintuple
+        print(f"\n  Cinq lignes (parcours complet):")
+        print(f"    ABCDE: {self.bikes_combinations_count['ABCDE']:3d} vélo(s) ✅")
 
         total_bikes = sum(self.bikes_combinations_count.values())
         print(f"\n✅ TOTAL DE VÉLOS UNIQUES: {total_bikes}")
 
         # PERSONNES
         print(f"\n👤 PERSONNES - PASSAGES PAR LIGNE:")
-        print(f"  Ligne A: {self.count_people_a} personnes")
-        print(f"  Ligne B: {self.count_people_b} personnes")
-        print(f"  Ligne C: {self.count_people_c} personnes")
+        print(f"  Ligne A: {self.count_people_a:3d} | Ligne B: {self.count_people_b:3d} | Ligne C: {self.count_people_c:3d} | Ligne D: {self.count_people_d:3d} | Ligne E: {self.count_people_e:3d}")
 
-        print(f"\n👤 PERSONNES - ANALYSE DES TRAJETS:")
-        print(f"  A seulement:         {self.people_combinations_count['A_only']} personnes")
-        print(f"  B seulement:         {self.people_combinations_count['B_only']} personnes")
-        print(f"  C seulement:         {self.people_combinations_count['C_only']} personnes")
-        print(f"  A et B:              {self.people_combinations_count['A_and_B']} personnes")
-        print(f"  A et C:              {self.people_combinations_count['A_and_C']} personnes")
-        print(f"  B et C:              {self.people_combinations_count['B_and_C']} personnes")
-        print(f"  A, B et C (complet): {self.people_combinations_count['A_B_and_C']} personnes")
+        print(f"\n👤 PERSONNES - ANALYSE DES TRAJETS (31 combinaisons):")
+
+        # Singles
+        print(f"\n  Ligne unique (5):")
+        for key in ['A', 'B', 'C', 'D', 'E']:
+            count = self.people_combinations_count[key]
+            if count > 0:
+                print(f"    {key:5s}: {count:3d} personne(s)")
+
+        # Pairs
+        print(f"\n  Deux lignes (10):")
+        for key in ['AB', 'AC', 'AD', 'AE', 'BC', 'BD', 'BE', 'CD', 'CE', 'DE']:
+            count = self.people_combinations_count[key]
+            if count > 0:
+                print(f"    {key:5s}: {count:3d} personne(s)")
+
+        # Triples
+        print(f"\n  Trois lignes (10):")
+        for key in ['ABC', 'ABD', 'ABE', 'ACD', 'ACE', 'ADE', 'BCD', 'BCE', 'BDE', 'CDE']:
+            count = self.people_combinations_count[key]
+            if count > 0:
+                print(f"    {key:5s}: {count:3d} personne(s)")
+
+        # Quadruples
+        print(f"\n  Quatre lignes (5):")
+        for key in ['ABCD', 'ABCE', 'ABDE', 'ACDE', 'BCDE']:
+            count = self.people_combinations_count[key]
+            if count > 0:
+                print(f"    {key:5s}: {count:3d} personne(s)")
+
+        # Quintuple
+        print(f"\n  Cinq lignes (parcours complet):")
+        print(f"    ABCDE: {self.people_combinations_count['ABCDE']:3d} personne(s) ✅")
 
         total_people = sum(self.people_combinations_count.values())
         print(f"\n✅ TOTAL DE PERSONNES UNIQUES: {total_people}")
 
         print(f"\n📊 TOTAL GÉNÉRAL: {total_bikes + total_people} objets ({total_bikes} vélos + {total_people} personnes)")
-        print("="*70 + "\n")
+        print("="*80 + "\n")
 
     def save_results(self):
         """Sauvegarde les résultats dans un fichier JSON"""
@@ -564,40 +641,30 @@ class MultiLineBikeCounter:
             "lines": {
                 "A": self.line_a,
                 "B": self.line_b,
-                "C": self.line_c
+                "C": self.line_c,
+                "D": self.line_d,
+                "E": self.line_e
             },
             "bikes": {
                 "counts_per_line": {
                     "A": self.count_bikes_a,
                     "B": self.count_bikes_b,
-                    "C": self.count_bikes_c
+                    "C": self.count_bikes_c,
+                    "D": self.count_bikes_d,
+                    "E": self.count_bikes_e
                 },
-                "trajectory_analysis": {
-                    "A_only": self.bikes_combinations_count['A_only'],
-                    "B_only": self.bikes_combinations_count['B_only'],
-                    "C_only": self.bikes_combinations_count['C_only'],
-                    "A_and_B": self.bikes_combinations_count['A_and_B'],
-                    "A_and_C": self.bikes_combinations_count['A_and_C'],
-                    "B_and_C": self.bikes_combinations_count['B_and_C'],
-                    "A_B_and_C": self.bikes_combinations_count['A_B_and_C']
-                },
+                "trajectory_analysis": self.bikes_combinations_count,
                 "total_unique": sum(self.bikes_combinations_count.values())
             },
             "people": {
                 "counts_per_line": {
                     "A": self.count_people_a,
                     "B": self.count_people_b,
-                    "C": self.count_people_c
+                    "C": self.count_people_c,
+                    "D": self.count_people_d,
+                    "E": self.count_people_e
                 },
-                "trajectory_analysis": {
-                    "A_only": self.people_combinations_count['A_only'],
-                    "B_only": self.people_combinations_count['B_only'],
-                    "C_only": self.people_combinations_count['C_only'],
-                    "A_and_B": self.people_combinations_count['A_and_B'],
-                    "A_and_C": self.people_combinations_count['A_and_C'],
-                    "B_and_C": self.people_combinations_count['B_and_C'],
-                    "A_B_and_C": self.people_combinations_count['A_B_and_C']
-                },
+                "trajectory_analysis": self.people_combinations_count,
                 "total_unique": sum(self.people_combinations_count.values())
             },
             "total_general": sum(self.bikes_combinations_count.values()) + sum(self.people_combinations_count.values()),
@@ -613,17 +680,21 @@ class MultiLineBikeCounter:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Compteur multi-lignes de vélos - Analyse des trajectoires A, B, C"
+        description="Compteur multi-lignes de vélos - Analyse des trajectoires A, B, C, D, E"
     )
     parser.add_argument("video", help="Chemin vers la vidéo MP4")
     parser.add_argument("-m", "--model", default="yolov8n.pt",
                        help="Modèle YOLO (défaut: yolov8n.pt)")
     parser.add_argument("-a", "--line-a", type=int, default=None,
-                       help="Position X de la ligne A (défaut: 1/4 largeur)")
+                       help="Position X de la ligne A (défaut: 1/6 largeur)")
     parser.add_argument("-b", "--line-b", type=int, default=None,
-                       help="Position X de la ligne B (défaut: 1/2 largeur)")
+                       help="Position X de la ligne B (défaut: 2/6 largeur)")
     parser.add_argument("-c", "--line-c", type=int, default=None,
-                       help="Position X de la ligne C (défaut: 3/4 largeur)")
+                       help="Position X de la ligne C (défaut: 3/6 largeur)")
+    parser.add_argument("-d", "--line-d", type=int, default=None,
+                       help="Position X de la ligne D (défaut: 4/6 largeur)")
+    parser.add_argument("-e", "--line-e", type=int, default=None,
+                       help="Position X de la ligne E (défaut: 5/6 largeur)")
     parser.add_argument("--confidence", type=float, default=0.5,
                        help="Confiance minimale (0.0-1.0, défaut: 0.5)")
     parser.add_argument("-o", "--output", default=None,
@@ -645,6 +716,8 @@ def main():
         line_a=args.line_a,
         line_b=args.line_b,
         line_c=args.line_c,
+        line_d=args.line_d,
+        line_e=args.line_e,
         min_confidence=args.confidence,
         show_video=not args.no_display,
         output_path=args.output,

@@ -1,5 +1,5 @@
 """
-Outil interactif pour ajuster les 3 lignes de comptage (A, B, C)
+Outil interactif pour ajuster les 5 lignes de comptage (A, B, C, D, E)
 Permet de visualiser et choisir les positions optimales avant le traitement
 """
 
@@ -20,9 +20,11 @@ class MultiLineAdjuster:
         self.line_a = 0
         self.line_b = 0
         self.line_c = 0
+        self.line_d = 0
+        self.line_e = 0
 
         # Ligne actuellement sélectionnée
-        self.selected_line = 'B'  # Par défaut, ligne B
+        self.selected_line = 'C'  # Par défaut, ligne C (milieu)
 
     def run(self):
         """Lance l'interface d'ajustement"""
@@ -42,10 +44,12 @@ class MultiLineAdjuster:
 
         self.height, self.width = self.frame.shape[:2]
 
-        # Initialiser les positions par défaut
-        self.line_a = self.width // 4
-        self.line_b = self.width // 2
-        self.line_c = (3 * self.width) // 4
+        # Initialiser les positions par défaut (1/6, 2/6, 3/6, 4/6, 5/6)
+        self.line_a = self.width // 6
+        self.line_b = (2 * self.width) // 6
+        self.line_c = (3 * self.width) // 6
+        self.line_d = (4 * self.width) // 6
+        self.line_e = (5 * self.width) // 6
 
         self.print_instructions()
         self.main_loop()
@@ -59,28 +63,30 @@ class MultiLineAdjuster:
 
     def print_instructions(self):
         """Affiche les instructions"""
-        print("\n" + "="*70)
-        print("AJUSTEUR MULTI-LIGNES (A, B, C)")
-        print("="*70)
+        print("\n" + "="*80)
+        print("AJUSTEUR MULTI-LIGNES (A, B, C, D, E)")
+        print("="*80)
         print(f"Résolution vidéo: {self.width}x{self.height}")
         print(f"\nPositions initiales:")
-        print(f"  Ligne A (bleue):  x = {self.line_a}")
-        print(f"  Ligne B (verte):  x = {self.line_b}")
-        print(f"  Ligne C (rouge):  x = {self.line_c}")
+        print(f"  Ligne A (bleue):    x = {self.line_a}")
+        print(f"  Ligne B (verte):    x = {self.line_b}")
+        print(f"  Ligne C (rouge):    x = {self.line_c}")
+        print(f"  Ligne D (jaune):    x = {self.line_d}")
+        print(f"  Ligne E (magenta):  x = {self.line_e}")
         print(f"\n🎮 CONTRÔLES:")
-        print(f"  [A] [B] [C]         : Sélectionner la ligne à ajuster")
+        print(f"  [A] [B] [C] [D] [E] : Sélectionner la ligne à ajuster")
         print(f"  Clic gauche         : Déplacer la ligne sélectionnée")
         print(f"  ← →                 : Déplacer de 10 pixels")
         print(f"  Shift + ← →         : Déplacer de 1 pixel")
         print(f"  ESPACE              : Frame suivante")
         print(f"  R                   : Revenir au début")
-        print(f"  D                   : Positions par défaut")
+        print(f"  X                   : Positions par défaut")
         print(f"  ENTER ou Q          : Confirmer et quitter")
-        print("="*70 + "\n")
+        print("="*80 + "\n")
 
     def main_loop(self):
         """Boucle principale d'affichage"""
-        window_name = 'Ajusteur Multi-Lignes - [A] [B] [C] pour sélectionner'
+        window_name = 'Ajusteur Multi-Lignes - [A] [B] [C] [D] [E] pour sélectionner'
         cv2.namedWindow(window_name)
         cv2.setMouseCallback(window_name, self.mouse_callback)
 
@@ -105,11 +111,17 @@ class MultiLineAdjuster:
             elif key == ord('c') or key == ord('C'):
                 self.selected_line = 'C'
                 print(f"→ Ligne C sélectionnée (x = {self.line_c})")
+            elif key == ord('d') or key == ord('D'):
+                self.selected_line = 'D'
+                print(f"→ Ligne D sélectionnée (x = {self.line_d})")
+            elif key == ord('e') or key == ord('E'):
+                self.selected_line = 'E'
+                print(f"→ Ligne E sélectionnée (x = {self.line_e})")
             elif key == ord(' '):  # ESPACE
                 self.next_frame()
             elif key == ord('r') or key == ord('R'):
                 self.reset_to_beginning()
-            elif key == ord('d') or key == ord('D'):
+            elif key == ord('x') or key == ord('X'):
                 self.reset_to_defaults()
             elif key == 81 or key == 2:  # Flèche gauche
                 self.move_selected_line(-10)
@@ -128,6 +140,10 @@ class MultiLineAdjuster:
                 self.line_b = x
             elif self.selected_line == 'C':
                 self.line_c = x
+            elif self.selected_line == 'D':
+                self.line_d = x
+            elif self.selected_line == 'E':
+                self.line_e = x
 
             print(f"Ligne {self.selected_line} déplacée à x = {x}")
 
@@ -142,6 +158,12 @@ class MultiLineAdjuster:
         elif self.selected_line == 'C':
             self.line_c = max(0, min(self.width, self.line_c + delta))
             print(f"Ligne C: x = {self.line_c}")
+        elif self.selected_line == 'D':
+            self.line_d = max(0, min(self.width, self.line_d + delta))
+            print(f"Ligne D: x = {self.line_d}")
+        elif self.selected_line == 'E':
+            self.line_e = max(0, min(self.width, self.line_e + delta))
+            print(f"Ligne E: x = {self.line_e}")
 
     def next_frame(self):
         """Passe à la frame suivante"""
@@ -161,10 +183,12 @@ class MultiLineAdjuster:
 
     def reset_to_defaults(self):
         """Réinitialise aux positions par défaut"""
-        self.line_a = self.width // 4
-        self.line_b = self.width // 2
-        self.line_c = (3 * self.width) // 4
-        print(f"Positions par défaut: A={self.line_a}, B={self.line_b}, C={self.line_c}")
+        self.line_a = self.width // 6
+        self.line_b = (2 * self.width) // 6
+        self.line_c = (3 * self.width) // 6
+        self.line_d = (4 * self.width) // 6
+        self.line_e = (5 * self.width) // 6
+        print(f"Positions par défaut: A={self.line_a}, B={self.line_b}, C={self.line_c}, D={self.line_d}, E={self.line_e}")
 
     def draw_frame(self):
         """Dessine la frame avec les lignes et annotations"""
@@ -192,12 +216,26 @@ class MultiLineAdjuster:
         cv2.putText(display_frame, "C", (self.line_c - 15, 40),
                    cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
 
-        # Zone d'information
+        # Ligne D (jaune)
+        thickness_d = 5 if self.selected_line == 'D' else 3
+        cv2.line(display_frame, (self.line_d, 0), (self.line_d, self.height),
+                (255, 255, 0), thickness_d)
+        cv2.putText(display_frame, "D", (self.line_d - 15, 40),
+                   cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 0), 3)
+
+        # Ligne E (magenta)
+        thickness_e = 5 if self.selected_line == 'E' else 3
+        cv2.line(display_frame, (self.line_e, 0), (self.line_e, self.height),
+                (255, 0, 255), thickness_e)
+        cv2.putText(display_frame, "E", (self.line_e - 15, 40),
+                   cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 0, 255), 3)
+
+        # Zone d'information (plus grande pour 5 lignes)
         overlay = display_frame.copy()
-        cv2.rectangle(overlay, (10, self.height - 180), (500, self.height - 10), (0, 0, 0), -1)
+        cv2.rectangle(overlay, (10, self.height - 240), (500, self.height - 10), (0, 0, 0), -1)
         cv2.addWeighted(overlay, 0.7, display_frame, 0.3, 0, display_frame)
 
-        y = self.height - 150
+        y = self.height - 210
         line_height = 30
 
         # Positions des lignes
@@ -213,6 +251,14 @@ class MultiLineAdjuster:
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         y += line_height
 
+        cv2.putText(display_frame, f"Ligne D: {self.line_d} px", (20, y),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
+        y += line_height
+
+        cv2.putText(display_frame, f"Ligne E: {self.line_e} px", (20, y),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 255), 2)
+        y += line_height
+
         # Ligne sélectionnée
         cv2.putText(display_frame, f"Selectionnee: {self.selected_line}", (20, y),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
@@ -226,21 +272,23 @@ class MultiLineAdjuster:
 
     def print_final_command(self):
         """Affiche la commande finale à utiliser"""
-        print("\n" + "="*70)
+        print("\n" + "="*80)
         print("POSITIONS FINALES DES LIGNES:")
-        print(f"  Ligne A (bleue):  x = {self.line_a}")
-        print(f"  Ligne B (verte):  x = {self.line_b}")
-        print(f"  Ligne C (rouge):  x = {self.line_c}")
+        print(f"  Ligne A (bleue):    x = {self.line_a}")
+        print(f"  Ligne B (verte):    x = {self.line_b}")
+        print(f"  Ligne C (rouge):    x = {self.line_c}")
+        print(f"  Ligne D (jaune):    x = {self.line_d}")
+        print(f"  Ligne E (magenta):  x = {self.line_e}")
         print("\n📋 COMMANDE À UTILISER:")
-        print(f"python bike_counter_multiline.py {self.video_path} -a {self.line_a} -b {self.line_b} -c {self.line_c}")
+        print(f"python bike_counter_multiline.py {self.video_path} -a {self.line_a} -b {self.line_b} -c {self.line_c} -d {self.line_d} -e {self.line_e}")
         print("\n💡 Avec sauvegarde vidéo:")
-        print(f"python bike_counter_multiline.py {self.video_path} -a {self.line_a} -b {self.line_b} -c {self.line_c} -o output.mp4")
-        print("="*70 + "\n")
+        print(f"python bike_counter_multiline.py {self.video_path} -a {self.line_a} -b {self.line_b} -c {self.line_c} -d {self.line_d} -e {self.line_e} -o output.mp4")
+        print("="*80 + "\n")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Outil interactif pour ajuster les 3 lignes de comptage (A, B, C)"
+        description="Outil interactif pour ajuster les 5 lignes de comptage (A, B, C, D, E)"
     )
     parser.add_argument("video", help="Chemin vers la vidéo MP4")
 
