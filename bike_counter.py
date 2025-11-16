@@ -52,10 +52,9 @@ class BikeCounter:
         print(f"Chargement du modèle YOLO: {model_path}")
         self.model = YOLO(model_path)
 
-        # Déplacer le modèle sur le device approprié
-        if self.device != 'cpu':
-            print(f"Déplacement du modèle sur {self.device}...")
-            self.model.to(self.device)
+        # Note: Pour DirectML, on ne déplace PAS le modèle avec .to()
+        # On passe simplement le device dans les appels .track()
+        # Cela évite l'erreur "Cannot set version_counter for inference tensor"
 
         # Classe 1 = bicycle dans COCO dataset
         self.bike_class_id = 1

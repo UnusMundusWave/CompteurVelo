@@ -45,9 +45,8 @@ def benchmark_device(video_path, device, model_path="yolov8n.pt", num_runs=3):
     print("Chargement du modèle...")
     model = YOLO(model_path)
 
-    if device != 'cpu':
-        print(f"Déplacement du modèle sur {device}...")
-        model.to(device)
+    # Note: Pas de .to(device) pour DirectML
+    # On passe le device directement dans les appels d'inférence
 
     # Ouvrir la vidéo
     cap = cv2.VideoCapture(video_path)

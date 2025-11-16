@@ -99,10 +99,9 @@ def test_yolo_gpu():
         print("Chargement du modèle YOLOv8n...")
         model = YOLO("yolov8n.pt")
 
-        # Déplacer le modèle sur GPU
-        print("Déplacement du modèle sur GPU...")
-        model.to(device)
-        print(f"✓ Modèle YOLO sur GPU")
+        # Note: Pas besoin de .to(device) avec DirectML
+        # On passe le device directement dans l'inférence
+        print(f"✓ Modèle YOLO chargé (utilisera {device})")
 
         # Créer une image de test
         print("Création d'une image de test...")
@@ -155,7 +154,7 @@ def benchmark_cpu_vs_gpu():
         # Test GPU
         print("\n🎮 TEST GPU (DirectML):")
         device = torch_directml.device()
-        model.to(device)
+        # Pas de .to(device) pour DirectML - on passe le device dans l'inférence
 
         print("Warm-up...")
         model(test_image, device=device, verbose=False)
