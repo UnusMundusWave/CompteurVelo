@@ -15,7 +15,7 @@ import os
 
 class BikeCounter:
     def __init__(self, video_path, model_path="yolov8n.pt", counting_line_x=None,
-                 min_confidence=0.5, show_video=True, output_path=None):
+                 min_confidence=0.5, show_video=True, output_path=None, use_gpu=True):
         """
         Initialise le compteur de vélos
 
@@ -26,6 +26,7 @@ class BikeCounter:
             min_confidence: Confiance minimale pour la détection (0.0 à 1.0)
             show_video: Afficher la vidéo pendant le traitement
             output_path: Chemin pour sauvegarder la vidéo annotée (None = pas de sauvegarde)
+            use_gpu: Utiliser le GPU AMD via DirectML si disponible
         """
         self.video_path = video_path
         self.model_path = model_path
@@ -33,6 +34,10 @@ class BikeCounter:
         self.min_confidence = min_confidence
         self.show_video = show_video
         self.output_path = output_path
+        self.use_gpu = use_gpu
+
+        # Configurer le device (GPU ou CPU)
+        self.device = self._setup_device()
 
         # Compteurs
         self.count_left_to_right = 0  # Vélos allant de gauche à droite
@@ -47,8 +52,37 @@ class BikeCounter:
         print(f"Chargement du modèle YOLO: {model_path}")
         self.model = YOLO(model_path)
 
+        # Déplacer le modèle sur le device approprié
+        if self.device != 'cpu':
+            print(f"Déplacement du modèle sur {self.device}...")
+            self.model.to(self.device)
+
         # Classe 1 = bicycle dans COCO dataset
         self.bike_class_id = 1
+
+    def _setup_device(self):
+        """Configure le device GPU ou CPU"""
+        if not self.use_gpu:
+            print("GPU désactivé, utilisation du CPU")
+            return 'cpu'
+
+        try:
+            import torch_directml
+            if torch_directml.is_available():
+                device = torch_directml.device()
+                print(f"✓ GPU AMD DirectML détecté et activé: {device}")
+                return device
+            else:
+                print("⚠ DirectML installé mais non disponible, utilisation du CPU")
+                return 'cpu'
+        except ImportError:
+            print("⚠ DirectML non installé, utilisation du CPU")
+            print("  Pour activer le GPU AMD: pip install torch-directml")
+            return 'cpu'
+        except Exception as e:
+            print(f"⚠ Erreur lors de la configuration GPU: {e}")
+            print("  Utilisation du CPU par défaut")
+            return 'cpu'
 
     def process_video(self):
         """Traite la vidéo et compte les vélos"""
@@ -105,6 +139,7 @@ class BikeCounter:
                     persist=True,  # Activer le suivi entre frames
                     conf=self.min_confidence,
                     classes=[self.bike_class_id],  # Filtrer uniquement les vélos
+                    device=self.device,
                     verbose=False
                 )
 
@@ -119,10 +154,13 @@ class BikeCounter:
                 if self.show_video:
                     cv2.imshow('Compteur de Vélos', annotated_frame)
 
-                    # Quitter avec 'q'
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        print("\nArrêt demandé par l'utilisateur")
-                        break
+                    # Vérifier les touches seulement toutes les 10 frames pour plus de vitesse
+                    if frame_count % 10 == 0:
+                        if cv2.waitKey(1) & 0xFF == ord('q'):
+                            print("\nArrêt demandé par l'utilisateur")
+                            break
+                    else:
+                        cv2.waitKey(1)  # Nécessaire pour rafraîchir l'affichage
 
         finally:
             # Nettoyer
@@ -281,6 +319,8 @@ def main():
                        help="Sauvegarder la vidéo annotée")
     parser.add_argument("--no-display", action="store_true",
                        help="Ne pas afficher la vidéo pendant le traitement")
+    parser.add_argument("--no-gpu", action="store_true",
+                       help="Forcer l'utilisation du CPU (désactiver GPU)")
 
     args = parser.parse_args()
 
@@ -296,7 +336,8 @@ def main():
         counting_line_x=args.line,
         min_confidence=args.confidence,
         show_video=not args.no_display,
-        output_path=args.output
+        output_path=args.output,
+        use_gpu=not args.no_gpu
     )
 
     counter.process_video()
