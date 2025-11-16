@@ -24,6 +24,7 @@ build/
 
 # Résultats
 bike_count_results.json
+bike_count_multiline_results.json
 results/
 output/
 
