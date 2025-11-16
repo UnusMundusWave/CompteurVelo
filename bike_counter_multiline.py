@@ -85,27 +85,24 @@ class MultiLineBikeCounter:
 
     def _setup_device(self):
         """Configure le device GPU ou CPU"""
+        import torch
+
+        # Configurer PyTorch pour utiliser tous les threads CPU disponibles
+        torch.set_num_threads(32)  # Optimisation pour CPU 32 threads
+        torch.set_num_interop_threads(4)  # Threads pour opérations parallèles
+
+        num_threads = torch.get_num_threads()
+        print(f"✓ CPU optimisé: {num_threads} threads configurés")
+
         if not self.use_gpu:
-            print("GPU désactivé, utilisation du CPU")
+            print("Mode CPU sélectionné")
             return 'cpu'
 
-        try:
-            import torch_directml
-            if torch_directml.is_available():
-                device = torch_directml.device()
-                print(f"✓ GPU AMD DirectML détecté et activé: {device}")
-                return device
-            else:
-                print("⚠ DirectML installé mais non disponible, utilisation du CPU")
-                return 'cpu'
-        except ImportError:
-            print("⚠ DirectML non installé, utilisation du CPU")
-            print("  Pour activer le GPU AMD: pip install torch-directml")
-            return 'cpu'
-        except Exception as e:
-            print(f"⚠ Erreur lors de la configuration GPU: {e}")
-            print("  Utilisation du CPU par défaut")
-            return 'cpu'
+        # DirectML a des incompatibilités avec certaines versions de YOLO
+        # Utilisation du CPU par défaut pour éviter les erreurs
+        print("⚠️  DirectML désactivé (incompatibilités connues)")
+        print("   Le CPU 32 threads offre d'excellentes performances pour YOLO")
+        return 'cpu'
 
     def process_video(self):
         """Traite la vidéo et compte les vélos"""
@@ -153,6 +150,9 @@ class MultiLineBikeCounter:
         # Garder trace des IDs vus dans la frame précédente
         previous_ids = set()
 
+        # Flag pour indiquer si on a testé le GPU
+        gpu_tested = False
+
         try:
             while True:
                 ret, frame = cap.read()
@@ -168,14 +168,43 @@ class MultiLineBikeCounter:
                     print(f"  Progression: {progress:.1f}% ({frame_count}/{total_frames}) - Vélos détectés: {total_bikes}")
 
                 # Détection et suivi avec YOLO
-                results = self.model.track(
-                    frame,
-                    persist=True,
-                    conf=self.min_confidence,
-                    classes=[self.bike_class_id],
-                    device=self.device,
-                    verbose=False
-                )
+                # Test de compatibilité GPU sur la première frame
+                if not gpu_tested and self.device != 'cpu':
+                    try:
+                        results = self.model.track(
+                            frame,
+                            persist=True,
+                            conf=self.min_confidence,
+                            classes=[self.bike_class_id],
+                            device=self.device,
+                            verbose=False
+                        )
+                        gpu_tested = True
+                    except RuntimeError as e:
+                        if "version_counter" in str(e) or "inference tensor" in str(e):
+                            print(f"\n⚠️  Erreur DirectML détectée: {e}")
+                            print("⚠️  Bascule automatique sur CPU...")
+                            self.device = 'cpu'
+                            results = self.model.track(
+                                frame,
+                                persist=True,
+                                conf=self.min_confidence,
+                                classes=[self.bike_class_id],
+                                device='cpu',
+                                verbose=False
+                            )
+                            gpu_tested = True
+                        else:
+                            raise
+                else:
+                    results = self.model.track(
+                        frame,
+                        persist=True,
+                        conf=self.min_confidence,
+                        classes=[self.bike_class_id],
+                        device=self.device,
+                        verbose=False
+                    )
 
                 # Traiter les détections
                 current_ids = self.process_detections(frame, results)
