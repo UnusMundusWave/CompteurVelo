@@ -272,11 +272,22 @@ class MultiLineBikeCounter:
                             verbose=False
                         )
                         gpu_tested = True
+                        print(f"✓ GPU fonctionnel pour YOLO")
                     except RuntimeError as e:
                         if "version_counter" in str(e) or "inference tensor" in str(e):
-                            print(f"\n⚠️  Erreur DirectML détectée: {e}")
+                            print(f"\n⚠️  Erreur DirectML détectée: {str(e)[:100]}")
                             print("⚠️  Bascule automatique sur CPU...")
+                            print("   (Le modèle doit être rechargé)")
+
+                            # IMPORTANT: Recharger le modèle pour éviter l'état corrompu
                             self.device = 'cpu'
+                            del self.model  # Libérer l'ancien modèle
+                            import gc
+                            gc.collect()  # Forcer le garbage collection
+
+                            print(f"   Rechargement du modèle YOLO pour CPU...")
+                            self.model = YOLO(self.model_path)
+
                             results = self.model.track(
                                 frame,
                                 persist=True,
@@ -286,6 +297,7 @@ class MultiLineBikeCounter:
                                 verbose=False
                             )
                             gpu_tested = True
+                            print(f"✓ Bascule sur CPU réussie\n")
                         else:
                             raise
                 else:
