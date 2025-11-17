@@ -568,16 +568,37 @@ class MultiLineBikeCounter:
 
     def draw_stats(self, frame):
         """Dessine les statistiques sur la frame"""
+        # Calculer les comptages en temps réel (incluant les objets actifs)
+        realtime_bikes = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0}
+        realtime_people = {'A': 0, 'B': 0, 'C': 0, 'D': 0, 'E': 0}
+
+        for obj_id, crossings in self.object_crossings.items():
+            obj_type = self.object_types.get(obj_id)
+            if obj_type == 'bike':
+                for line in crossings:
+                    realtime_bikes[line] += 1
+            elif obj_type == 'person':
+                for line in crossings:
+                    realtime_people[line] += 1
+
+        # Compter les objets actifs (non finalisés)
+        active_bikes = sum(1 for obj_id in self.object_crossings.keys()
+                          if obj_id not in self.finished_objects
+                          and self.object_types.get(obj_id) == 'bike')
+        active_people = sum(1 for obj_id in self.object_crossings.keys()
+                           if obj_id not in self.finished_objects
+                           and self.object_types.get(obj_id) == 'person')
+
         # Fond semi-transparent plus grand pour les deux catégories
         overlay = frame.copy()
-        cv2.rectangle(overlay, (10, 50), (550, 250), (0, 0, 0), -1)
+        cv2.rectangle(overlay, (10, 50), (600, 280), (0, 0, 0), -1)
         cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
 
         y_offset = 70
         line_height = 25
 
         # Titre
-        cv2.putText(frame, "COMPTAGE 5 LIGNES - VELOS & PERSONNES", (20, y_offset),
+        cv2.putText(frame, "COMPTAGE TEMPS REEL - 5 LIGNES", (20, y_offset),
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         y_offset += line_height + 5
 
@@ -586,13 +607,13 @@ class MultiLineBikeCounter:
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
         y_offset += line_height
 
-        cv2.putText(frame, f"A:{self.count_bikes_a} B:{self.count_bikes_b} C:{self.count_bikes_c} D:{self.count_bikes_d} E:{self.count_bikes_e}",
+        cv2.putText(frame, f"A:{realtime_bikes['A']} B:{realtime_bikes['B']} C:{realtime_bikes['C']} D:{realtime_bikes['D']} E:{realtime_bikes['E']}",
                    (30, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
         y_offset += line_height - 5
 
-        total_bikes = sum(self.bikes_combinations_count.values())
-        cv2.putText(frame, f"Total: {total_bikes} | ABCDE: {self.bikes_combinations_count['ABCDE']}", (30, y_offset),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1)
+        total_bikes_finished = sum(self.bikes_combinations_count.values())
+        cv2.putText(frame, f"Finis: {total_bikes_finished} | Actifs: {active_bikes} | Total: {total_bikes_finished + active_bikes}", (30, y_offset),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (180, 180, 180), 1)
         y_offset += line_height + 5
 
         # PERSONNES
@@ -600,13 +621,13 @@ class MultiLineBikeCounter:
                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 128, 0), 2)
         y_offset += line_height
 
-        cv2.putText(frame, f"A:{self.count_people_a} B:{self.count_people_b} C:{self.count_people_c} D:{self.count_people_d} E:{self.count_people_e}",
+        cv2.putText(frame, f"A:{realtime_people['A']} B:{realtime_people['B']} C:{realtime_people['C']} D:{realtime_people['D']} E:{realtime_people['E']}",
                    (30, y_offset), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 200, 200), 1)
         y_offset += line_height - 5
 
-        total_people = sum(self.people_combinations_count.values())
-        cv2.putText(frame, f"Total: {total_people} | ABCDE: {self.people_combinations_count['ABCDE']}", (30, y_offset),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1)
+        total_people_finished = sum(self.people_combinations_count.values())
+        cv2.putText(frame, f"Finis: {total_people_finished} | Actifs: {active_people} | Total: {total_people_finished + active_people}", (30, y_offset),
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (180, 180, 180), 1)
 
     def print_results(self):
         """Affiche les résultats finaux"""
