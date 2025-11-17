@@ -643,6 +643,12 @@ class MultiLineBikeCounter:
         print(f"  Ligne D: {self.count_bikes_d:4d} vélos")
         print(f"  Ligne E: {self.count_bikes_e:4d} vélos")
 
+        # Calculer les combinaisons spécifiques pour vélos
+        bikes_cd = self._count_combination_with_lines(['C', 'D'], self.bikes_combinations_count)
+
+        print(f"\n  Combinaisons:")
+        print(f"    C et D (les deux): {bikes_cd:4d} vélos")
+
         total_bikes = sum(self.bikes_combinations_count.values())
         print(f"\n  TOTAL VÉLOS UNIQUES: {total_bikes}")
 
@@ -653,6 +659,12 @@ class MultiLineBikeCounter:
         print(f"  Ligne C: {self.count_people_c:4d} personnes")
         print(f"  Ligne D: {self.count_people_d:4d} personnes")
         print(f"  Ligne E: {self.count_people_e:4d} personnes")
+
+        # Calculer les combinaisons spécifiques pour personnes
+        people_cd = self._count_combination_with_lines(['C', 'D'], self.people_combinations_count)
+
+        print(f"\n  Combinaisons:")
+        print(f"    C et D (les deux): {people_cd:4d} personnes")
 
         total_people = sum(self.people_combinations_count.values())
         print(f"\n  TOTAL PERSONNES UNIQUES: {total_people}")
@@ -668,7 +680,33 @@ class MultiLineBikeCounter:
         # Note explicative
         print("NOTE: Les compteurs par ligne comptent chaque passage.")
         print("      Un vélo qui traverse A, C et E sera compté 1 fois sur A, 1 fois sur C et 1 fois sur E.")
+        print("      'C et D (les deux)' compte les objets qui ont traversé C ET D (peu importe les autres lignes).")
         print("      Le TOTAL UNIQUE compte chaque vélo une seule fois (pas de doublons).\n")
+
+    def _count_combination_with_lines(self, required_lines, combinations_dict):
+        """
+        Compte combien d'objets ont traversé TOUTES les lignes spécifiées
+        (peu importe s'ils ont aussi traversé d'autres lignes)
+
+        Args:
+            required_lines: Liste des lignes requises (ex: ['C', 'D'])
+            combinations_dict: Dictionnaire des combinaisons à analyser
+
+        Returns:
+            Nombre d'objets ayant traversé toutes les lignes requises
+        """
+        required_set = set(required_lines)
+        count = 0
+
+        for combination_key, combination_count in combinations_dict.items():
+            # Convertir la clé en set (ex: 'CD' -> {'C', 'D'}, 'ABCDE' -> {'A','B','C','D','E'})
+            combination_set = set(combination_key)
+
+            # Si toutes les lignes requises sont présentes dans cette combinaison
+            if required_set.issubset(combination_set):
+                count += combination_count
+
+        return count
 
     def save_results(self):
         """Sauvegarde les résultats dans un fichier JSON"""
