@@ -60,8 +60,9 @@ class BikeCounter:
         self.bike_class_id = 1
 
     def _setup_device(self):
-        """Configure le device GPU ou CPU"""
+        """Configure le device GPU ou CPU - Support AMD GFX 1151 (RDNA 3)"""
         import torch
+        import platform
 
         # Configurer PyTorch pour utiliser tous les threads CPU disponibles
         torch.set_num_threads(32)  # Optimisation pour CPU 32 threads
@@ -74,10 +75,63 @@ class BikeCounter:
             print("Mode CPU sélectionné")
             return 'cpu'
 
-        # DirectML a des incompatibilités avec certaines versions de YOLO
-        # Utilisation du CPU par défaut pour éviter les erreurs
-        print("⚠️  DirectML désactivé (incompatibilités connues)")
-        print("   Le CPU 32 threads offre d'excellentes performances pour YOLO")
+        # Tenter d'utiliser le GPU AMD
+        print("\n🔍 Détection GPU AMD...")
+
+        # Option 1: DirectML (Windows uniquement)
+        if platform.system() == "Windows":
+            try:
+                import torch_directml
+                device_count = torch_directml.device_count()
+
+                if device_count > 0:
+                    print(f"✓ DirectML détecté: {device_count} device(s)")
+                    device = torch_directml.device()
+                    print(f"✓ Utilisation du GPU AMD via DirectML")
+                    print(f"  Device: {device}")
+                    print(f"  Note: Compatible avec AMD GFX 1151 (RDNA 3)")
+                    return device
+                else:
+                    print("⚠️  DirectML installé mais aucun GPU détecté")
+
+            except ImportError:
+                print("⚠️  torch-directml non installé")
+                print("   Pour activer le GPU AMD sur Windows:")
+                print("   pip install torch-directml")
+            except Exception as e:
+                print(f"⚠️  Erreur DirectML: {e}")
+
+        # Option 2: ROCm (Linux uniquement)
+        elif platform.system() == "Linux":
+            try:
+                if torch.cuda.is_available():
+                    gpu_name = torch.cuda.get_device_name(0)
+                    print(f"✓ ROCm détecté")
+                    print(f"  GPU: {gpu_name}")
+                    print(f"  Nombre de GPUs: {torch.cuda.device_count()}")
+
+                    # Vérifier si c'est bien un GPU AMD RDNA 3
+                    if "AMD" in gpu_name.upper() or "Radeon" in gpu_name:
+                        print(f"✓ Utilisation du GPU AMD via ROCm")
+                        print(f"  Note: Compatible avec AMD GFX 1151 (RDNA 3)")
+                        return 'cuda'  # ROCm utilise l'interface CUDA
+                    else:
+                        print(f"⚠️  GPU détecté mais n'est pas AMD: {gpu_name}")
+                else:
+                    print("⚠️  ROCm installé mais aucun GPU détecté")
+                    print("   Vérifiez que ROCm est correctement installé:")
+                    print("   rocminfo | grep gfx")
+
+            except Exception as e:
+                print(f"⚠️  ROCm non disponible: {e}")
+                print("   Pour activer le GPU AMD sur Linux:")
+                print("   1. Installer ROCm 5.7+")
+                print("   2. pip3 install torch torchvision --index-url https://download.pytorch.org/whl/rocm5.7")
+
+        # Fallback sur CPU
+        print("\n⚠️  GPU AMD non disponible, utilisation du CPU")
+        print("   Le CPU 32 threads offre d'excellentes performances")
+        print("   Pour activer le GPU, exécutez: python test_amd_gpu.py")
         return 'cpu'
 
     def process_video(self):
