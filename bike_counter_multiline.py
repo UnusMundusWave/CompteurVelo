@@ -632,93 +632,43 @@ class MultiLineBikeCounter:
     def print_results(self):
         """Affiche les résultats finaux"""
         print("\n" + "="*80)
-        print("RÉSULTATS DU COMPTAGE 5 LIGNES - VÉLOS ET PERSONNES")
+        print("RÉSULTATS DU COMPTAGE - PASSAGES PAR LIGNE")
         print("="*80)
 
-        # VÉLOS
-        print(f"\n🚴 VÉLOS - PASSAGES PAR LIGNE:")
-        print(f"  Ligne A: {self.count_bikes_a:3d} | Ligne B: {self.count_bikes_b:3d} | Ligne C: {self.count_bikes_c:3d} | Ligne D: {self.count_bikes_d:3d} | Ligne E: {self.count_bikes_e:3d}")
-
-        print(f"\n🚴 VÉLOS - ANALYSE DES TRAJETS (31 combinaisons):")
-
-        # Singles
-        print(f"\n  Ligne unique (5):")
-        for key in ['A', 'B', 'C', 'D', 'E']:
-            count = self.bikes_combinations_count[key]
-            if count > 0:
-                print(f"    {key:5s}: {count:3d} vélo(s)")
-
-        # Pairs
-        print(f"\n  Deux lignes (10):")
-        for key in ['AB', 'AC', 'AD', 'AE', 'BC', 'BD', 'BE', 'CD', 'CE', 'DE']:
-            count = self.bikes_combinations_count[key]
-            if count > 0:
-                print(f"    {key:5s}: {count:3d} vélo(s)")
-
-        # Triples
-        print(f"\n  Trois lignes (10):")
-        for key in ['ABC', 'ABD', 'ABE', 'ACD', 'ACE', 'ADE', 'BCD', 'BCE', 'BDE', 'CDE']:
-            count = self.bikes_combinations_count[key]
-            if count > 0:
-                print(f"    {key:5s}: {count:3d} vélo(s)")
-
-        # Quadruples
-        print(f"\n  Quatre lignes (5):")
-        for key in ['ABCD', 'ABCE', 'ABDE', 'ACDE', 'BCDE']:
-            count = self.bikes_combinations_count[key]
-            if count > 0:
-                print(f"    {key:5s}: {count:3d} vélo(s)")
-
-        # Quintuple
-        print(f"\n  Cinq lignes (parcours complet):")
-        print(f"    ABCDE: {self.bikes_combinations_count['ABCDE']:3d} vélo(s) ✅")
+        # VÉLOS - Simple et clair
+        print(f"\n🚴 VÉLOS:")
+        print(f"  Ligne A: {self.count_bikes_a:4d} vélos")
+        print(f"  Ligne B: {self.count_bikes_b:4d} vélos")
+        print(f"  Ligne C: {self.count_bikes_c:4d} vélos")
+        print(f"  Ligne D: {self.count_bikes_d:4d} vélos")
+        print(f"  Ligne E: {self.count_bikes_e:4d} vélos")
 
         total_bikes = sum(self.bikes_combinations_count.values())
-        print(f"\n✅ TOTAL DE VÉLOS UNIQUES: {total_bikes}")
+        print(f"\n  TOTAL VÉLOS UNIQUES: {total_bikes}")
 
-        # PERSONNES
-        print(f"\n👤 PERSONNES - PASSAGES PAR LIGNE:")
-        print(f"  Ligne A: {self.count_people_a:3d} | Ligne B: {self.count_people_b:3d} | Ligne C: {self.count_people_c:3d} | Ligne D: {self.count_people_d:3d} | Ligne E: {self.count_people_e:3d}")
-
-        print(f"\n👤 PERSONNES - ANALYSE DES TRAJETS (31 combinaisons):")
-
-        # Singles
-        print(f"\n  Ligne unique (5):")
-        for key in ['A', 'B', 'C', 'D', 'E']:
-            count = self.people_combinations_count[key]
-            if count > 0:
-                print(f"    {key:5s}: {count:3d} personne(s)")
-
-        # Pairs
-        print(f"\n  Deux lignes (10):")
-        for key in ['AB', 'AC', 'AD', 'AE', 'BC', 'BD', 'BE', 'CD', 'CE', 'DE']:
-            count = self.people_combinations_count[key]
-            if count > 0:
-                print(f"    {key:5s}: {count:3d} personne(s)")
-
-        # Triples
-        print(f"\n  Trois lignes (10):")
-        for key in ['ABC', 'ABD', 'ABE', 'ACD', 'ACE', 'ADE', 'BCD', 'BCE', 'BDE', 'CDE']:
-            count = self.people_combinations_count[key]
-            if count > 0:
-                print(f"    {key:5s}: {count:3d} personne(s)")
-
-        # Quadruples
-        print(f"\n  Quatre lignes (5):")
-        for key in ['ABCD', 'ABCE', 'ABDE', 'ACDE', 'BCDE']:
-            count = self.people_combinations_count[key]
-            if count > 0:
-                print(f"    {key:5s}: {count:3d} personne(s)")
-
-        # Quintuple
-        print(f"\n  Cinq lignes (parcours complet):")
-        print(f"    ABCDE: {self.people_combinations_count['ABCDE']:3d} personne(s) ✅")
+        # PERSONNES - Simple et clair
+        print(f"\n👤 PERSONNES:")
+        print(f"  Ligne A: {self.count_people_a:4d} personnes")
+        print(f"  Ligne B: {self.count_people_b:4d} personnes")
+        print(f"  Ligne C: {self.count_people_c:4d} personnes")
+        print(f"  Ligne D: {self.count_people_d:4d} personnes")
+        print(f"  Ligne E: {self.count_people_e:4d} personnes")
 
         total_people = sum(self.people_combinations_count.values())
-        print(f"\n✅ TOTAL DE PERSONNES UNIQUES: {total_people}")
+        print(f"\n  TOTAL PERSONNES UNIQUES: {total_people}")
 
-        print(f"\n📊 TOTAL GÉNÉRAL: {total_bikes + total_people} objets ({total_bikes} vélos + {total_people} personnes)")
+        # Résumé global
+        print(f"\n📊 RÉSUMÉ:")
+        print(f"  Total vélos:     {total_bikes}")
+        print(f"  Total personnes: {total_people}")
+        print(f"  TOTAL GÉNÉRAL:   {total_bikes + total_people}")
+
         print("="*80 + "\n")
+
+        # Note explicative
+        print("NOTE: Les compteurs par ligne comptent chaque passage.")
+        print("      Un vélo qui traverse A, C et E sera compté 1 fois sur A, 1 fois sur C et 1 fois sur E.")
+        print("      Le TOTAL UNIQUE compte chaque vélo une seule fois (pas de doublons).\n")
 
     def save_results(self):
         """Sauvegarde les résultats dans un fichier JSON"""
